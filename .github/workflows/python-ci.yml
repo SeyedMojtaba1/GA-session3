@@ -1,0 +1,116 @@
+name: python-cli
+
+permissions:
+  contents: write
+
+on:
+  push:
+    paths:
+      - "*.py"
+      - ".github/workflows/python*"
+  release:
+    types: [published]
+
+jobs:
+  setup-python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create venv & Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r reqirements.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-workspace
+          path: ./
+          retention-days: 90
+
+  lint-python:
+    name: Lint python code
+    needs: setup-python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: python-workspace
+
+      - name: Restore setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore venv script permission
+        run: chmod -R +x venv/bin
+
+      - name: Execute pylint
+        run: venv/bin/pylint *.py
+
+  Test-python:
+    name: Test python code
+    needs: setup-python
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: python-workspace
+
+      - name: Restore setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore venv script permission
+        run: chmod -R +x venv/bin
+
+      - name: Execute pytest
+        run: venv/bin/pytest test.py
+
+  build-python:
+    name: Build Python App
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: Test-python
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pyinstaller
+        run: pip install pyinstaller
+
+      - name: Build for x86_64
+        run: pyinstaller --name main_${{ runner.os }}_x86_64.out --distpath ./ --onefile --target-architecture x86_64 main.py
+
+      - name: Build for arm64
+        run: pyinstaller --name main_${{ runner.os }}_arm64.out --distpath ./ --onefile --target-architecture arm64 main.py
+
+      - name: Upload binary to the github release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./main_${{ runner.os }}*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
