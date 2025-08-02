@@ -28,7 +28,7 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install -r reqirements.txt
+          pip install -r requirements.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
