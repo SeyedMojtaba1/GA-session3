@@ -1,13 +1,18 @@
+"""Add main for test"""
+
 import unittest
 from main import app
 
 
 class FlaskAppTestCase(unittest.TestCase):
+    """Definetion this class for test API"""
+
     def setUp(self):
         self.app = app.test_client()
         self.app.testing = True
 
     def test_home_route(self):
+        """Function that test / path"""
         result = self.app.get("/")
 
         self.assertEqual(result.status_code, 200)
